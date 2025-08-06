@@ -256,3 +256,21 @@ activation_np = activation.detach().cpu().numpy()
 lev.levitate(activation_np, num_loops=5)
 
 
+# Number of samples along the connecting line
+n_line_samples = 100  # Or however many you want
+
+# Step 1: Define start point
+start_point = torch.tensor([[0.0, 0.0, 0.0]], device=opt_curve.device)
+
+# Step 2: Get the first point on your spline
+first_spline_point = opt_curve[0].unsqueeze(0)
+
+# Step 3: Interpolate linearly between them
+line_points = torch.linspace(0, 1, n_line_samples, device=opt_curve.device).unsqueeze(1)
+line_samples = start_point * (1 - line_points) + first_spline_point * line_points  # Shape: [n_line_samples, 3]
+
+# Step 4: Concatenate the sampled line with the spline
+combined_curve = torch.cat([line_samples, opt_curve], dim=0)
+
+
+
