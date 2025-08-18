@@ -12,6 +12,24 @@ import numpy as np
 from sklearn.decomposition import PCA
 import numpy as np
 
+def compute_path_metrics(path, frame_rate):
+    path_np = path.detach().cpu().numpy()
+    diffs = np.diff(path_np, axis=0)
+    step_lengths = np.linalg.norm(diffs, axis=1)
+
+    total_length = step_lengths.sum()
+    num_frames = len(path_np)
+    total_time = num_frames / frame_rate
+    avg_speed = total_length / total_time
+
+    return {
+        "total_length": total_length,
+        "total_time": total_time,
+        "avg_speed": avg_speed,
+        "step_lengths": step_lengths,
+    }
+
+
 def smooth_path(path_np, window_size=5):
     """
     Smooth a 3D path using moving average filter.
@@ -229,7 +247,7 @@ def generate_knot_vector(control_points, degree):
 #     return torch.tensor(knots, dtype=points.dtype if isinstance(points, torch.Tensor) else torch.float32, device=points.device if isinstance(points, torch.Tensor) else 'cpu')
 
 
-mesh = Mesh("stls/torus.stl")
+mesh = Mesh("stls/four-balls.stl")
 N = 500
 
 indices = np.random.choice(mesh.npoints, N, replace=False)
@@ -349,15 +367,15 @@ new_opt_curve = torch.tensor(smoothed_np, dtype=torch.float32, device=opt_curve.
 print(new_opt_curve.norm(dim=1).diff())
 
 
-lev = LevitatorController(ids=(53, 73)) 
+lev = LevitatorController(ids=(999, 1000)) 
 # lev = LevitatorController(ids=(-1)) 
 print("connected!")
-lev.set_frame_rate(600)
+lev.set_frame_rate(700)
 
 xs = []
 
 for point in new_opt_curve:
-    p = point.unsqueeze(1).unsqueeze(0).to(device).to(DTYPE)/1400
+    p = point.unsqueeze(1).unsqueeze(0).to(device).to(DTYPE)/1500
     # print(f'position: {p}')
     wgs_out = wgs(p)
     activation = add_lev_sig(wgs_out)
@@ -366,7 +384,7 @@ for point in new_opt_curve:
 
 lev.levitate(xs[0])
 
-p0 = new_opt_curve[1].unsqueeze(1).unsqueeze(0).to(device).to(DTYPE)/1400
+p0 = new_opt_curve[1].unsqueeze(1).unsqueeze(0).to(device).to(DTYPE)/1500
 print(f'position: {p0}')
 wgs_out0 = wgs(p0)
 A, B, C = ABC(0.09, plane='xz')
@@ -376,4 +394,9 @@ Visualise(A, B, C, wgs_out0, points=p0)
 input()
 lev.levitate(xs)
 lev.disconnect()
+
+metrics = compute_path_metrics(new_opt_curve, frame_rate=600)
+print(f"Path length: {metrics['total_length']:.3f} mm")
+print(f"Path time: {metrics['total_time']:.3f} s")
+print(f"Average speed: {metrics['avg_speed']:.3f} mm/s")
 
